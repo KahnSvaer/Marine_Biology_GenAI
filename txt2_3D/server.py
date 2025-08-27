@@ -22,14 +22,28 @@ DEVICE = torch.device(
     else ("cuda:0" if torch.cuda.is_available() else "cpu")
 )
 
+# TEMP for pipeline, swap commented and uncommented code
+
+#MESH_PIPELINE = Hunyuan3DDiTFlowMatchingPipeline.from_pretrained(
+#    os.path.join(PROJECT_ROOT, 'models'),
+#    device=DEVICE
+#)
+
 MESH_PIPELINE = Hunyuan3DDiTFlowMatchingPipeline.from_pretrained(
-    os.path.join(PROJECT_ROOT, 'models'),
-    device=DEVICE,
+    'tencent/Hunyuan3D-2',
+    subfolder='hunyuan3d-dit-v2-0',
+    variant='fp16',
+    device = DEVICE_2,
     runtime=True
 )
 
+# PAINT_PIPELINE = Hunyuan3DPaintPipeline.from_pretrained(
+#    os.path.join(PROJECT_ROOT, 'models'),
+#    subfolder='hunyuan3d-paint-v2-0-turbo'
+#)
+
 PAINT_PIPELINE = Hunyuan3DPaintPipeline.from_pretrained(
-    os.path.join(PROJECT_ROOT, 'models'),
+    'tencent/Hunyuan3D-2',
     subfolder='hunyuan3d-paint-v2-0-turbo',
     runtime=True
 )
