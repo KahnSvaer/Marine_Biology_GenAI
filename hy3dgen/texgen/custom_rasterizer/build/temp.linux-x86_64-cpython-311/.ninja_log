@@ -1,0 +1,4 @@
+# ninja log v5
+1	45298	1756296719313029966	/kaggle/working/Marine_Biology_GenAI/hy3dgen/texgen/custom_rasterizer/build/temp.linux-x86_64-cpython-311/lib/custom_rasterizer_kernel/rasterizer.o	ed612294a08aa954
+1	51676	1756296725679532412	/kaggle/working/Marine_Biology_GenAI/hy3dgen/texgen/custom_rasterizer/build/temp.linux-x86_64-cpython-311/lib/custom_rasterizer_kernel/grid_neighbor.o	194db56cb2bfc71b
+1	78646	1756296752662661933	/kaggle/working/Marine_Biology_GenAI/hy3dgen/texgen/custom_rasterizer/build/temp.linux-x86_64-cpython-311/lib/custom_rasterizer_kernel/rasterizer_gpu.o	19e845560665187e
