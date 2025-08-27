@@ -6,6 +6,12 @@ import numpy as np
 import trimesh
 import open3d as o3d
 from torchvision import transforms
+from PIL import Image
+
+# --- Fix sys.path for local imports ---
+CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
+PROJECT_ROOT = os.path.dirname(CURRENT_DIR)
+sys.path.append(PROJECT_ROOT)
 
 # Custom imports
 from Image_generator import mymodel
@@ -13,6 +19,7 @@ from fathomnet.api import images
 from utils import get_best_crop_image
 from GenAI_image_generator import text_to_image
 from hy3dgen.rembg import BackgroundRemover
+
 
 # ------------------ MEMORY CLEANUP ------------------
 def clean_memory():
@@ -26,7 +33,7 @@ def clean_memory():
 def generate_3d(
     concept: str,
     method: str = "genai",
-    output_dir="outputs",
+    output_dir="output",
     mesh_pipeline=None,
     paint_pipeline=None,
 ):
@@ -41,11 +48,13 @@ def generate_3d(
         paint_pipeline: Preloaded Hunyuan3DPaintPipeline
 
     Returns:
-        dict: Paths to exported meshes {"raw_mesh": ..., "painted_mesh": ...}
+        dict: Paths to exported meshes {"raw_mesh": ..., "painted_mesh": ..., "image": ...}
     """
     if mesh_pipeline is None or paint_pipeline is None:
         raise ValueError("mesh_pipeline and paint_pipeline must be provided.")
 
+    # Make sure output folder exists inside project root
+    output_dir = os.path.join(PROJECT_ROOT, output_dir)
     os.makedirs(output_dir, exist_ok=True)
 
     # ------------------ IMAGE GENERATION ------------------
@@ -70,8 +79,13 @@ def generate_3d(
 
         # Load SRGAN model
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        model_path = os.path.join(PROJECT_ROOT, "image_model", "SR_GAN_best.pth")
+        if not os.path.exists(model_path):
+            raise FileNotFoundError(f"Model file not found: {model_path}")
+
         model = mymodel()
-        model.load_state_dict(torch.load("image_models/SR_GAN_best.pth", map_location=device))
+        state_dict = torch.load(model_path, map_location=device)
+        model.load_state_dict(state_dict)
         model.to(device)
         model.eval()
 
@@ -87,14 +101,13 @@ def generate_3d(
 
     else:
         raise ValueError("Invalid method. Choose 'genai' or 'fathomnet'.")
-    
+
     # ------------------ BACKGROUND REMOVAL ------------------
     image = best_image.convert("RGBA")
     rembg = BackgroundRemover()
-    image = rembg(image)
-    image_path = os.path.join(output_dir, f"image.png")
+    image = rembg(image)  # returns PIL image
+    image_path = os.path.join(output_dir, "image.png")
     image.save(image_path)
-
 
     # ------------------ MESH GENERATION ------------------
     img_mesh = mesh_pipeline(image=image)[0]
@@ -123,8 +136,8 @@ def generate_3d(
     painted_mesh = paint_pipeline(decimated_mesh, image=image)
 
     # ------------------ EXPORT ------------------
-    raw_mesh_path = os.path.join(output_dir, f"mesh.glb")
-    painted_mesh_path = os.path.join(output_dir, f"painted.glb")
+    raw_mesh_path = os.path.join(output_dir, "mesh.glb")
+    painted_mesh_path = os.path.join(output_dir, "painted.glb")
 
     mesh.export(raw_mesh_path)
     painted_mesh.export(painted_mesh_path)

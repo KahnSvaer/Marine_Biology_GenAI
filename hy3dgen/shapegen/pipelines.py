@@ -201,6 +201,7 @@ class Hunyuan3DDiTPipeline:
         use_safetensors=True,
         variant='fp16',
         subfolder='hunyuan3d-dit-v2-0',
+        runtime=False,
         **kwargs,
     ):
         kwargs['from_pretrained_kwargs'] = dict(
@@ -215,7 +216,8 @@ class Hunyuan3DDiTPipeline:
             model_path,
             subfolder=subfolder,
             use_safetensors=use_safetensors,
-            variant=variant
+            variant=variant,
+            runtime=runtime
         )
         return cls.from_single_file(
             ckpt_path,

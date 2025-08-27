@@ -1,6 +1,8 @@
+
 # --- Imports ---
 import math
 from io import BytesIO
+import os
 
 import cv2
 import numpy as np
@@ -13,6 +15,7 @@ from PIL import Image
 from torchvision import transforms
 from typing_extensions import Self
 from fathomnet.api import images
+from utils import get_best_crop_image
 
 
 # --- Utility functions ---
@@ -251,3 +254,38 @@ def score_crop_quality(crop, weights=(0.2, 0.3, 0.5)):
     s_score = min(sharpness / 300.0, 1.0)
     c_score = min(contrast / 60.0, 1.0)
     return weights[0] * b_score + weights[1] * s_score + weights[2] * c_score
+# --- IMAGE FETCHING (FathomNet + SRGAN) ---
+# ====================
+def main():
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print(f"Using device: {device}")
+
+    # Load model
+    model = mymodel()
+    model_path = "../image_model/SR_GAN_best.pth"
+    if not os.path.exists(model_path):
+        raise FileNotFoundError(f"Model file not found at {model_path}")
+    model.load_state_dict(torch.load(model_path))
+    model.to(device)
+    model.eval()
+
+    # Transform
+    sr_transform = transforms.Compose([
+        transforms.Resize((256, 256)),
+        transforms.ToTensor(),
+        transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
+    ])
+
+    concept = "Grimpoteuthis"
+
+    best_image = get_best_crop_image(concept, model, sr_transform, device)
+    if best_image:
+        best_image.show()
+        best_image.save("best_result.jpg")
+        print("Best image saved as best_result.jpg")
+    else:
+        print("No suitable image found.")
+
+
+if __name__ == "__main__":
+    main()

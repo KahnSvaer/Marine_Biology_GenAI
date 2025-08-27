@@ -10,31 +10,22 @@ import open3d as o3d
 from PIL import Image
 from torchvision import transforms
 
-# Custom imports
+# --- Add project root to Python path ---
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+sys.path.append(PROJECT_ROOT)
+
+# --- Local imports (relative to project root) ---
 from Image_generator import mymodel
 from fathomnet.api import images
 from utils import get_best_crop_image
-
-# Import our GenAI pipeline
 from GenAI_image_generator import text_to_image
-
-import sys, os
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 from hy3dgen.texgen import Hunyuan3DPaintPipeline
 from hy3dgen.shapegen import Hunyuan3DDiTFlowMatchingPipeline
 from hy3dgen.rembg import BackgroundRemover
 
 # --- Locate custom rasterizer .so ---
 rasterizer_libs = glob.glob(
-    os.path.join(
-        os.getcwd(),
-        "hy3dgen",
-        "texgen",
-        "custom_rasterizer",
-        "build",
-        "lib.*",
-        "*custom_rasterizer_kernel*.so"
-    )
+    os.path.join(PROJECT_ROOT, "hy3dgen", "texgen", "custom_rasterizer", "build", "lib.*", "*custom_rasterizer_kernel*.so")
 )
 if rasterizer_libs:
     sys.path.append(os.path.dirname(rasterizer_libs[0]))
@@ -52,28 +43,42 @@ def clean_memory():
 
 # --- Device selection ---
 clean_memory()
-DEVICE_2 = torch.device(
-    "cuda:1" if torch.cuda.device_count() > 1
-    else ("cuda:0" if torch.cuda.is_available() else "cpu")
-)
+DEVICE_2 = torch.device("cuda:1" if torch.cuda.device_count() > 1 else ("cuda:0" if torch.cuda.is_available() else "cpu"))
 
 # --- Load Mesh Generation Pipeline ---
+# mesh_pipeline = Hunyuan3DDiTFlowMatchingPipeline.from_pretrained(
+#     os.path.join(PROJECT_ROOT, "models"),
+#     device=DEVICE_2
+# )
+
+# TEMP loading mesh at runtime
 mesh_pipeline = Hunyuan3DDiTFlowMatchingPipeline.from_pretrained(
-    'models',
-    device=DEVICE_2
+    'tencent/Hunyuan3D-2',
+    subfolder='hunyuan3d-dit-v2-0',
+    variant='fp16',
+    device = DEVICE_2,
+    runtime=True
 )
 
 # --- Load Texture Painting Pipeline ---
 clean_memory()
+# paint_pipeline = Hunyuan3DPaintPipeline.from_pretrained(
+#     os.path.join(PROJECT_ROOT, "models"),
+#     subfolder="hunyuan3d-paint-v2-0-turbo"
+# )
+
+# TEMP loading mesh at runtime
 paint_pipeline = Hunyuan3DPaintPipeline.from_pretrained(
-    'models',
-    subfolder='hunyuan3d-paint-v2-0-turbo'
+    'tencent/Hunyuan3D-2',
+    subfolder='hunyuan3d-paint-v2-0-turbo',
+    runtime=True
 )
 
 print("Model Loaded")
 
 # ------------------ IMAGE SOURCE CHOICE ------------------
-choice = input("Choose image source - [1] FathomNet fetch  [2] GenAI generation: ").strip()
+# choice = input("Choose image source - [1] FathomNet fetch  [2] GenAI generation: ").strip()
+choice = "1" # TEMP_choice for testing purpose
 
 if choice == "2":
     # --- GenAI IMAGE GENERATION ---
@@ -100,14 +105,14 @@ if choice == "2":
 
 else:
     # --- IMAGE FETCHING (FathomNet + SRGAN) ---
-    CONCEPT = 'Grimpoteuthis'
+    CONCEPT = "Grimpoteuthis"
     fathomnet_image_list = images.find_by_concept(CONCEPT)
     image_urls = [img.url for img in fathomnet_image_list]
 
     # Load SRGAN model
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = mymodel()
-    model.load_state_dict(torch.load('image_models/SR_GAN_best.pth'))
+    model.load_state_dict(torch.load(os.path.join(PROJECT_ROOT, "image_model", "SR_GAN_best.pth"), map_location=device))
     model.to(device)
     model.eval()
 
@@ -117,18 +122,28 @@ else:
         transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
     ])
 
-    user_input = input("Enter concept name (default: Grimpoteuthis): ").strip()
-    concept = user_input if user_input else "Grimpoteuthis"
+    # user_input = input("Enter concept name (default: Grimpoteuthis): ").strip() # TEMP comment for kaggle run
+    # concept = user_input if user_input else "Grimpoteuthis"
+    concept = "Grimpoteuthis"
     best_image = get_best_crop_image(concept, model, sr_transform, device)
-    if best_image:
-        best_image.show()
-        best_image.save("best_result.jpg")
+    # if best_image:
+    #     best_image.show()
+    #     best_image.save("best_result.jpg")
 
 # ------------------ CONTINUE PIPELINE (common for both) ------------------
 image = best_image.convert("RGBA")
 rembg = BackgroundRemover()
 image = rembg(image)
-image.save("no_bg.png")
+
+# Create output directory if it doesn't exist
+output_dir = os.path.join(PROJECT_ROOT, "output")
+os.makedirs(output_dir, exist_ok=True)
+# Save processed input image
+if choice == "2":
+    image_path = os.path.join(output_dir, f"{concept}_genai.png")
+else:
+    image_path = os.path.join(output_dir, f"{concept}_fathomnet.png")
+image.save(image_path)
 
 img_mesh = mesh_pipeline(image=image)[0]
 
@@ -164,5 +179,10 @@ print("Total Time for model formation with decimation:", time.time() - initial_t
 clean_memory()
 
 # Export results
-img_mesh.export(f'img_mesh_{concept}.glb')
-paint_mesh.export(f'paint_mesh_{concept}.glb')
+raw_mesh_path = os.path.join(output_dir, f"img_mesh_{concept}.glb")
+painted_mesh_path = os.path.join(output_dir, f"paint_mesh_{concept}.glb")
+img_mesh.export(raw_mesh_path)
+paint_mesh.export(painted_mesh_path)
+
+print(f"All outputs saved in: {output_dir}")
+

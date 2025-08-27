@@ -1,16 +1,21 @@
-from flask import Flask, request, jsonify
+import sys
 import os
 import torch
-from generate_3d import generate_3d  # this should expect models passed in
+from flask import Flask, request, jsonify
+
+# --- Add project root to Python path ---
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+sys.path.append(PROJECT_ROOT)
+
+# --- Imports ---
+from generate_3d import generate_3d  # expects preloaded models
+from hy3dgen.texgen import Hunyuan3DPaintPipeline
+from hy3dgen.shapegen import Hunyuan3DDiTFlowMatchingPipeline
 
 # -------------------------------
 # Load models globally at startup
 # -------------------------------
 print("[INFO] Loading models once at startup...")
-
-# if your generate_3d internally loads models, move that logic here
-from hy3dgen.texgen import Hunyuan3DPaintPipeline
-from hy3dgen.shapegen import Hunyuan3DDiTFlowMatchingPipeline
 
 DEVICE = torch.device(
     "cuda:1" if torch.cuda.device_count() > 1
@@ -18,13 +23,15 @@ DEVICE = torch.device(
 )
 
 MESH_PIPELINE = Hunyuan3DDiTFlowMatchingPipeline.from_pretrained(
-    'models',
-    device=DEVICE
+    os.path.join(PROJECT_ROOT, 'models'),
+    device=DEVICE,
+    runtime=False
 )
 
 PAINT_PIPELINE = Hunyuan3DPaintPipeline.from_pretrained(
-    'models',
+    os.path.join(PROJECT_ROOT, 'models'),
     subfolder='hunyuan3d-paint-v2-0-turbo',
+    runtime=False
 )
 
 print("[INFO] Models loaded successfully.")
@@ -44,10 +51,13 @@ def generate():
         return jsonify({"error": "Missing 'concept' field"}), 400
 
     try:
+        # Pass preloaded pipelines to avoid reloading inside generate_3d
         result_paths = generate_3d(
             concept=concept,
             method=method,
-            output_dir="output_assets"
+            output_dir=os.path.join(PROJECT_ROOT, "output_assets"),
+            mesh_pipeline=MESH_PIPELINE,
+            paint_pipeline=PAINT_PIPELINE
         )
         return jsonify({"status": "done", "results": result_paths}), 200
     except Exception as e:
