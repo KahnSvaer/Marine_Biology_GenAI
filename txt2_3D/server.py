@@ -25,13 +25,13 @@ DEVICE = torch.device(
 MESH_PIPELINE = Hunyuan3DDiTFlowMatchingPipeline.from_pretrained(
     os.path.join(PROJECT_ROOT, 'models'),
     device=DEVICE,
-    runtime=False
+    runtime=True
 )
 
 PAINT_PIPELINE = Hunyuan3DPaintPipeline.from_pretrained(
     os.path.join(PROJECT_ROOT, 'models'),
     subfolder='hunyuan3d-paint-v2-0-turbo',
-    runtime=False
+    runtime=True
 )
 
 print("[INFO] Models loaded successfully.")
