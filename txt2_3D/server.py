@@ -33,7 +33,7 @@ MESH_PIPELINE = Hunyuan3DDiTFlowMatchingPipeline.from_pretrained(
     'tencent/Hunyuan3D-2',
     subfolder='hunyuan3d-dit-v2-0',
     variant='fp16',
-    device = DEVICE_2,
+    device = DEVICE,
     runtime=True
 )
 
