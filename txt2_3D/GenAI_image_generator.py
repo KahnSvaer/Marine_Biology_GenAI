@@ -26,9 +26,12 @@ def load_pipeline(model_path="models/stable-diffusion-3.5-large-turbo"):
         bnb_4bit_compute_dtype=torch.bfloat16
     )
 
+    model_id = "stabilityai/stable-diffusion-3.5-large-turbo" #TEMP_ Testing
+
     # Load transformer with 4-bit quantization
     model_nf4 = SD3Transformer2DModel.from_pretrained(
-        model_path,
+        # model_path,
+        model_id, #TEMP_ Testing
         subfolder="transformer",
         quantization_config=nf4_config,
         torch_dtype=torch.bfloat16
@@ -36,14 +39,15 @@ def load_pipeline(model_path="models/stable-diffusion-3.5-large-turbo"):
 
     # Load T5 text encoder in 4-bit
     t5_nf4 = T5EncoderModel.from_pretrained(
-        "models/t5-nf4",   # <-- also local version (downloaded & placed in models folder)
-        # "diffusers/t5-nf4",
+        # "models/t5-nf4",   # <-- also local version (downloaded & placed in models folder)
+        "diffusers/t5-nf4", #TEMP_ Testing
         torch_dtype=torch.bfloat16
     )
 
     # Final pipeline with offloading
     pipeline = StableDiffusion3Pipeline.from_pretrained(
-        model_path,
+        # model_path,
+        model_id, #TEMP_ Testing
         transformer=model_nf4,
         text_encoder_3=t5_nf4,
         torch_dtype=torch.bfloat16
